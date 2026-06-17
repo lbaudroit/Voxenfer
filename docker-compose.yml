@@ -1,0 +1,11 @@
+services: 
+  service-comptes:
+    build: ./service-comptes/src
+    ports: 
+      - 5000:5000 
+    environment:
+      DB_PATH: /data/comptes.db
+    volumes:
+      - comptes-data:/data
+volumes: 
+  comptes-data:
