@@ -23,7 +23,7 @@ from flask import jsonify, request
 
 # Secret partagé : DOIT être le même pour tous les services (sinon les jetons
 # émis par service-comptes sont rejetés ailleurs). Fixé dans docker-compose.yml.
-SECRET = os.environ.get("JWT_SECRET", "voxenfer-secret-partage-du-serveur-2026")
+SECRET = os.environ.get("JWT_SECRET", "je-suis-le-secret-tres-secret-12")
 
 
 def creer_token(sujet, roles=["joueur"]):
