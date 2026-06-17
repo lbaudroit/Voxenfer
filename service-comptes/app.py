@@ -27,7 +27,7 @@ def _compter():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "service": "VOTRE-NOM"})  # mettez votre nom
+    return jsonify({"status": "ok", "service": "comptes"})  # mettez votre nom
 
 
 @app.route("/metrics")
