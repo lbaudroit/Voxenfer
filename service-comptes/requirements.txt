@@ -1,4 +1,4 @@
-flask
-pyjwt
-requests
-sqlalchemy
+Flask==3.0.3
+SQLAlchemy==2.0.35
+PyJWT==2.9.0
+Werkzeug==3.0.4

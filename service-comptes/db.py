@@ -1,43 +1,67 @@
-"""Base de données du service, via un ORM : SQLAlchemy.
+"""db.py — Charpente ORM (SQLAlchemy sur SQLite) + modèles de service-comptes.
 
-Auteur : Philippe ROUSSILLE <roussille@3il.fr>
-
-Un ORM (Object-Relational Mapper) fait le pont entre des OBJETS Python et des
-LIGNES de table : vous manipulez des objets, l'ORM écrit le SQL à votre place.
-Principe micro-services : ce service possède SA base, un simple fichier SQLite
-(inclus dans Python, aucun serveur à installer). Le chemin passe par une variable
-d'environnement pour pouvoir le mettre dans un volume Docker (voir
-docker-compose.yml). Vous avez découvert ce pattern au TP 12.
+Une base SQLite PROPRE au service (un simple fichier). On manipule des objets
+Python, l'ORM écrit le SQL. La charpente (engine, Session, Base) est posée ici ;
+le modèle métier `Joueur` est défini dessous.
 """
+
 import os
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-DB_PATH = os.environ.get("DB_PATH", "data.db")
+# Fichier SQLite propre au service (surchargé en test via DB_PATH=:memory:).
+CHEMIN_DB = os.environ.get("DB_PATH", "comptes.db")
+if CHEMIN_DB == ":memory:":
+    URL_DB = "sqlite://"
+else:
+    URL_DB = f"sqlite:///{CHEMIN_DB}"
 
-# Le moteur : il sait parler à CETTE base (ici un fichier SQLite).
-engine = create_engine(f"sqlite:///{DB_PATH}")
-
-# Session : la "poignée" par laquelle on lit/écrit. On en ouvre une par requête.
+engine = create_engine(URL_DB, connect_args={"check_same_thread": False})
 Session = sessionmaker(bind=engine)
+Base = declarative_base()
 
 
-class Base(DeclarativeBase):
-    """Classe de base commune à tous vos modèles."""
+class Joueur(Base):
+    """Un compte. Les rôles sont stockés en CSV (« joueur,moderateur »)."""
+
+    __tablename__ = "joueurs"
+
+    id = Column(Integer, primary_key=True)
+    pseudo = Column(String, unique=True, nullable=False, index=True)
+    # JAMAIS le mot de passe en clair : on stocke le haché werkzeug.
+    mot_de_passe_hache = Column(String, nullable=False)
+    roles = Column(String, nullable=False, default="joueur")
+    # Profil (étoffé) + profession (bonus).
+    titre = Column(String, nullable=True)
+    bio = Column(Text, nullable=True)
+    profession = Column(String, nullable=True)
+
+    # --- helpers de (dé)sérialisation ---
+
+    def liste_roles(self):
+        return [r for r in (self.roles or "").split(",") if r]
+
+    def definir_roles(self, roles):
+        # On déduplique en conservant l'ordre, et on retire les vides.
+        propres = []
+        for r in roles:
+            if r and r not in propres:
+                propres.append(r)
+        self.roles = ",".join(propres)
+
+    def profil(self):
+        return {"titre": self.titre, "bio": self.bio, "profession": self.profession}
+
+    def vers_public(self):
+        """Fiche PUBLIQUE — ne contient jamais le mot de passe."""
+        return {
+            "pseudo": self.pseudo,
+            "roles": self.liste_roles(),
+            "profil": self.profil(),
+        }
 
 
-# --- Vos modèles : À ÉCRIRE -----------------------------------------------
-# Une table = une classe, une colonne = un attribut. Squelette type :
-#
-#   class Truc(Base):
-#       __tablename__ = "trucs"
-#       id: Mapped[int] = mapped_column(primary_key=True)
-#       nom: Mapped[str]
-#
-# Définissez ici les tables de VOTRE domaine (comptes, objets, scores...).
-
-
-def init():
-    """Crée les tables si elles n'existent pas. À APPELER au démarrage."""
+def init_db():
+    """Crée les tables si besoin (idempotent)."""
     Base.metadata.create_all(engine)
