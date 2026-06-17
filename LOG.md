@@ -1,0 +1,1 @@
+8:30 -> 9:00 : lecture du sujet, initialisation du git et de la collaboration inter-équipes
